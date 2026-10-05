@@ -104,6 +104,16 @@ describe("ModelRuntime image generation", () => {
 		);
 	});
 
+	it("lists the xAI image model separately from chat models", async () => {
+		const runtime = await createRuntime();
+		expect(runtime.getModelsOfType("image", "xai").map((model) => model.id)).toEqual(["grok-imagine-image-2.0"]);
+		expect(runtime.getModel("xai", "grok-imagine-image-2.0")).toBeUndefined();
+		expect(runtime.getProvider("xai")?.generateImages).toBeDefined();
+		await runtime.setRuntimeApiKey("xai", "xai-key");
+		const image = runtime.getModelOfType("image", "xai", "grok-imagine-image-2.0")!;
+		expect((await runtime.getAuth(image))?.auth.apiKey).toBe("xai-key");
+	});
+
 	it("extension model lists replace undeclared models of every operation", async () => {
 		const runtime = await createRuntime();
 		const chat: Model<"test-chat"> = {

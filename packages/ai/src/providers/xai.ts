@@ -1,8 +1,9 @@
 import { openAIResponsesApi } from "../api/openai-responses.lazy.ts";
+import { xaiImagesApi } from "../api/xai-images.lazy.ts";
 import { envApiKeyAuth, lazyOAuth } from "../auth/helpers.ts";
 import { loadXaiOAuth } from "../auth/oauth/load.ts";
 import { createProvider, type Provider } from "../models.ts";
-import { XAI_MODELS } from "./xai.models.ts";
+import { XAI_IMAGE_MODELS, XAI_MODELS } from "./xai.models.ts";
 
 export function xaiProvider(): Provider<"openai-responses"> {
 	return createProvider({
@@ -18,7 +19,8 @@ export function xaiProvider(): Provider<"openai-responses"> {
 				load: loadXaiOAuth,
 			}),
 		},
-		models: Object.values(XAI_MODELS),
+		models: [...Object.values(XAI_MODELS), ...Object.values(XAI_IMAGE_MODELS)],
 		api: openAIResponsesApi(),
+		images: { "xai-images": xaiImagesApi() },
 	});
 }

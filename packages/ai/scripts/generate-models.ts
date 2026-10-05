@@ -477,6 +477,10 @@ const XAI_BUILTIN_EXCLUDED_MODEL_IDS = new Set([
 	"grok-4.20-0309-reasoning",
 	"grok-build-0.1",
 	"grok-code-fast-1",
+	// Imagine image models are not chat models. The current one is cataloged below.
+	"grok-imagine-image",
+	"grok-imagine-image-quality",
+	"grok-imagine-image-2.0",
 ]);
 const XAI_RESPONSES_COMPAT: OpenAIResponsesCompat = {
 	supportsLongCacheRetention: false,
@@ -2745,6 +2749,26 @@ const OPENCODE_CLASSIFIER_MODELS: ClassifierModel<"typesafe-system-one">[] = [
 	},
 ];
 
+// https://docs.x.ai/developers/models recommends Grok Imagine Image 2.0 and lists
+// $0.04 per image. There is no documented image "latest" alias. Token cost stays
+// zero: the call is billed per image, not per token. Replace this id when xAI
+// publishes a newer Imagine image model; do not keep the older tiers.
+const XAI_IMAGE_MODELS: ImageModel<"xai-images">[] = [
+	{
+		type: "image",
+		id: "grok-imagine-image-2.0",
+		name: "Grok Imagine Image 2.0",
+		api: "xai-images",
+		provider: "xai",
+		baseUrl: "https://api.x.ai/v1",
+		input: ["text", "image"],
+		// https://docs.x.ai/developers/release-notes — editing accepts 5 source images.
+		inputLimits: { images: { maxPerRequest: 5 } },
+		output: ["image"],
+		cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+	},
+];
+
 const CLOUDFLARE_WORKERS_AI_CLASSIFIER_MODELS: ClassifierModel<"cloudflare-workers-ai-system-one">[] = [
 	// Cloudflare-hosted Clef decision models. They accept images, but classifier
 	// contexts carry text or JSON state only, so the catalog advertises text.
@@ -3522,7 +3546,7 @@ async function generateModels() {
 		// Only add if not already present (models.dev takes priority over OpenRouter).
 		providers[model.provider].chat[model.id] ??= { ...model, type: "chat" };
 	}
-	for (const model of openRouterCatalog.images) {
+	for (const model of [...openRouterCatalog.images, ...XAI_IMAGE_MODELS]) {
 		applyImageInputMetadata(model);
 		providers[model.provider] ??= { chat: {}, image: {}, classifier: {} };
 		providers[model.provider].image[model.id] ??= model;

@@ -886,7 +886,8 @@ console.log(model.output); // ['image'] or ['image', 'text']
 - Some models accept image input, others are text-to-image only. Check `model.input`.
 - Like the streaming APIs, image generation supports options such as `apiKey`, `signal`, `headers`, `onPayload`, and `onResponse`, and results may include `stopReason`, `responseId`, and `usage`.
 - If you want a model to analyze images in a conversation or call tools, use the regular chat APIs with a model that supports image input.
-- At the moment, image generation is available through only one provider, OpenRouter.
+- Image generation is available through OpenRouter and xAI. xAI lists `grok-imagine-image-2.0` and uses `XAI_API_KEY` or the xAI login, not `OPENROUTER_API_KEY`. Edits take up to 5 JPEG, PNG, or WebP sources, in image-block order. To name one of several, write `<IMAGE_0>` yourself.
+- xAI reads `aspect_ratio`, `resolution`, `quality`, and `n` from `metadata`. Other providers ignore those fields. Omit a field to keep the service default. `aspect_ratio` is `1:1`, `3:4`, `4:3`, `9:16`, `16:9`, `2:3`, `3:2`, `9:19.5`, `19.5:9`, `9:20`, `20:9`, `1:2`, `2:1`, `21:9`, `5:2`, or `auto`. `resolution` is `1k` or `2k`. `quality` is `auto`, `low`, or `medium`; omitted `quality` is the service default `auto` (low for generation, medium for editing). `n` is an integer of at least 1, and at most 10 for generation.
 
 ## Classification
 

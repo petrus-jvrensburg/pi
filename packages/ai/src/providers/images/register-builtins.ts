@@ -1,4 +1,5 @@
 import type { generateImages as generateImagesOpenRouterFunction } from "../../api/openrouter-images.ts";
+import type { generateImages as generateImagesXaiFunction } from "../../api/xai-images.ts";
 import { registerImagesApiProvider } from "../../images-api-registry.ts";
 import type {
 	AssistantImages,
@@ -47,10 +48,40 @@ export const generateImagesOpenRouter: ImagesFunction<ImagesOptions> = async (
 	}
 };
 
+interface XaiImagesProviderModule {
+	generateImages: typeof generateImagesXaiFunction;
+}
+
+let xaiImagesProviderModulePromise: Promise<XaiImagesProviderModule> | undefined;
+
+function loadXaiImagesProviderModule(): Promise<XaiImagesProviderModule> {
+	xaiImagesProviderModulePromise ||= import("../../api/xai-images.ts").then(
+		(module) => module as XaiImagesProviderModule,
+	);
+	return xaiImagesProviderModulePromise;
+}
+
+export const generateImagesXai: ImagesFunction<ImagesOptions> = async (
+	model: ImageModel<ImageApi>,
+	context: ImagesContext,
+	options?: ImagesOptions,
+) => {
+	try {
+		const module = await loadXaiImagesProviderModule();
+		return await module.generateImages(model, context, options);
+	} catch (error) {
+		return createLazyLoadErrorImages(model, error);
+	}
+};
+
 export function registerBuiltInImagesApiProviders(): void {
 	registerImagesApiProvider({
 		api: "openrouter-images",
 		generateImages: generateImagesOpenRouter,
+	});
+	registerImagesApiProvider({
+		api: "xai-images",
+		generateImages: generateImagesXai,
 	});
 }
 

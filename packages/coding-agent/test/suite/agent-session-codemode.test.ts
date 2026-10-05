@@ -681,6 +681,7 @@ describe("codemode models", () => {
 		baseUrl: string;
 		apiKey: string | undefined;
 		input: ImagesContext["input"];
+		metadata: Record<string, unknown> | undefined;
 	}
 
 	async function setup() {
@@ -699,7 +700,12 @@ describe("codemode models", () => {
 			images: {
 				"test-images": {
 					generateImages: async (model, context, options): Promise<AssistantImages> => {
-						imageRequests.push({ baseUrl: model.baseUrl, apiKey: options?.apiKey, input: context.input });
+						imageRequests.push({
+							baseUrl: model.baseUrl,
+							apiKey: options?.apiKey,
+							input: context.input,
+							metadata: options?.metadata,
+						});
 						const prompt = context.input.find((block) => block.type === "text")?.text;
 						const base = { api: model.api, provider: model.provider, model: model.id, timestamp: 0 };
 						if (prompt === "explode") {
@@ -875,6 +881,7 @@ describe("codemode models", () => {
 			{ type: "text", text: "a fox" },
 			{ type: "image", data: TINY_PNG_BASE64, mimeType: "image/png" },
 		]);
+		expect(imageRequests.every((request) => request.metadata === undefined)).toBe(true);
 		const details = result.details as unknown as CodemodeToolDetails;
 		expect(details.calls.map((call) => [call.name, call.args, call.status, call.cost, call.error])).toEqual([
 			["models.generateImages", "scorer/painter", "ok", 0.04, undefined],
@@ -882,6 +889,46 @@ describe("codemode models", () => {
 		]);
 		expect(result.usage?.cost.total).toBeCloseTo(0.04, 10);
 		expect(harness.session.getSessionStats().cost).toBeCloseTo(0.04, 10);
+	});
+
+	it("forwards generateImages options as provider metadata", async () => {
+		const { harness, imageRequests } = await setup();
+		const result = await run(
+			harness,
+			`
+			const [model] = await models.getAvailableOfType("image", "scorer");
+			const generated = await models.generateImages(
+				model,
+				{ input: [{ type: "text", text: "a fox" }, { type: "image", data: "${TINY_PNG_BASE64}", mimeType: "image/png" }] },
+				{ aspect_ratio: "16:9", resolution: "2k", quality: "medium", n: 2, seed: "ignored" },
+			);
+			for (const block of generated.output) if (block.type === "image") image(block);
+			const attempt = async (fn) => { try { await fn(); return "ok"; } catch (error) { return error.message; } };
+			return {
+				stopReason: generated.stopReason,
+				badOptions: await attempt(() => models.generateImages(model, { input: [{ type: "text", text: "a fox" }] }, "16:9")),
+			};
+		`,
+		);
+		expect(result.isError).toBe(false);
+		expect(JSON.parse(checkSavedImages(resultText(result)).split("\n").at(-1) ?? "")).toEqual({
+			stopReason: "stop",
+			badOptions: expect.stringContaining("plain object"),
+		});
+		expect(imageRequests).toHaveLength(1);
+		expect(imageRequests[0].metadata).toEqual({
+			aspect_ratio: "16:9",
+			resolution: "2k",
+			quality: "medium",
+			n: 2,
+			seed: "ignored",
+		});
+		const details = result.details as unknown as CodemodeToolDetails;
+		expect(details.calls.map((call) => [call.name, call.args, call.status])).toEqual([
+			["models.generateImages", "scorer/painter", "ok"],
+		]);
+		expect(details.calls[0].args).not.toContain("fox");
+		expect(details.calls[0].args).not.toContain(TINY_PNG_BASE64);
 	});
 
 	it("notes generated images that the script did not show", async () => {

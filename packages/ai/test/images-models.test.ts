@@ -394,7 +394,9 @@ describe("Models with image models", () => {
 		expect(provider.getModels().every((model) => isModelType(model, "chat"))).toBe(true);
 		expect(provider.getAllModels?.().some((model) => isModelType(model, "image"))).toBe(true);
 		expect(images.every((m) => m.type === "image" && m.api === "openrouter-images")).toBe(true);
-		expect(models.getModelsOfType("image").every((m) => m.provider === "openrouter")).toBe(true);
+		expect(models.getModelsOfType("image").every((m) => m.provider === "openrouter" || m.provider === "xai")).toBe(
+			true,
+		);
 
 		// One upstream id can expose separate chat and image operations.
 		const chat = models.getModel("openrouter", "google/gemini-3-pro-image");
@@ -406,5 +408,23 @@ describe("Models with image models", () => {
 		expect((await models.getAuth(images[0]))?.auth.apiKey).toBe("or-key");
 		expect((await models.getAuth(chat!))?.auth.apiKey).toBe("or-key");
 		expect(provider.generateImages).toBeDefined();
+	});
+
+	it("builtinModels exposes only grok-imagine-image-2.0 for xAI", async () => {
+		const models = builtinModels({ authContext: fakeAuthContext({ XAI_API_KEY: "xai-key" }) });
+		const images = getBuiltinImageModels("xai");
+		expect(images.map((model) => model.id)).toEqual(["grok-imagine-image-2.0"]);
+		expect(images[0]).toMatchObject({
+			type: "image",
+			api: "xai-images",
+			provider: "xai",
+			input: ["text", "image"],
+			output: ["image"],
+			cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+		});
+		expect(models.getModelOfType("image", "xai", "grok-imagine-image-2.0")?.id).toBe("grok-imagine-image-2.0");
+		expect(models.getModel("xai", "grok-imagine-image-2.0")).toBeUndefined();
+		expect((await models.getAuth(images[0]))?.auth.apiKey).toBe("xai-key");
+		expect(models.getProvider("xai")?.generateImages).toBeDefined();
 	});
 });

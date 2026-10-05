@@ -168,9 +168,12 @@ Extensions call classifiers through `ctx.modelRegistry.classify()`, without code
 
 ## Use image models
 
-Image models generate images from a prompt and optional input images. Pi lists OpenRouter's image models, such as `google/gemini-2.5-flash-image` and `black-forest-labs/flux.2-pro`, under the `openrouter` provider; they use the same `OPENROUTER_API_KEY` or `/login` credential as its chat models.
+Image models generate images from a prompt and optional input images. Pi lists them on the provider that serves them, and each uses that provider's credential:
 
-Like classifier models, image models do not appear in `/model`; the model reaches them through the [`codemode`](cli.md#enable-codemode) tool. Scripts list them with `models.getAvailableOfType("image")` and call `models.generateImages(model, { input })`. The result's `output` holds base64 image blocks, which `image()` attaches to the `codemode` result so the model sees them:
+- OpenRouter image models, such as `google/gemini-2.5-flash-image` and `black-forest-labs/flux.2-pro`, use `OPENROUTER_API_KEY` or the OpenRouter `/login` credential.
+- xAI's `grok-imagine-image-2.0` uses `XAI_API_KEY` or the xAI `/login` credential (SuperGrok or X Premium), not `OPENROUTER_API_KEY`. Edits accept up to 5 JPEG, PNG, or WebP images, in image-block order. To name one of several sources, write `<IMAGE_0>`, `<IMAGE_1>`, and so on yourself. Text blocks do not count. One source needs no token.
+
+Like classifier models, image models do not appear in `/model`; the model reaches them through the [`codemode`](cli.md#enable-codemode) tool. Scripts list them with `models.getAvailableOfType("image")` and call `models.generateImages(model, { input }, options)`. `options` is optional. xAI reads `aspect_ratio`, `resolution`, `quality`, and `n` from it; other providers ignore those fields. Omit a field to keep the service default. The result's `output` holds base64 image blocks, which `image()` attaches to the `codemode` result so the model sees them:
 
 ```js
 const painter = await models.getModelOfType("image", "openrouter", "google/gemini-2.5-flash-image");
@@ -179,6 +182,14 @@ const result = await models.generateImages(painter, {
 });
 if (result.stopReason !== "stop") return result.errorMessage;
 for (const block of result.output) if (block.type === "image") image(block);
+```
+
+```js
+const wide = await models.generateImages(
+  await models.getModelOfType("image", "xai", "grok-imagine-image-2.0"),
+  { input: [{ type: "text", text: "A red fox in the snow, watercolor" }] },
+  { aspect_ratio: "16:9", resolution: "2k", quality: "medium", n: 2 },
+);
 ```
 
 `input` can also contain `{ type: "image", data, mimeType }` blocks to edit or use as references. Pi adds the usage of a script's image calls to the `codemode` tool result, like classifier calls. Generated images are not saved to disk. [Codemode](codemode.md#generate-images) describes the full API.

@@ -195,6 +195,17 @@ function checkImagesContext(context: unknown): ImagesContext {
 	return context as unknown as ImagesContext;
 }
 
+/** The optional third `generateImages` argument: provider metadata, not prompts or image bytes. */
+function checkImageMetadata(options: unknown): Record<string, unknown> | undefined {
+	if (options === undefined) return undefined;
+	if (!isRecord(options)) {
+		throw new Error(
+			`models.generateImages() options must be a plain object, got ${describeValue(options)}. See "Generate images" in ${CODEMODE_DOCS_PATH}.`,
+		);
+	}
+	return options;
+}
+
 /** The fields of `ClassifierResult` and `AssistantImages` that a nested call row reports. */
 interface ModelCallResult {
 	stopReason: "stop" | "error" | "aborted";
@@ -639,12 +650,18 @@ function createModelGlobals(
 	 * Resolve the script's model by provider and id only, check the context, then run the call as a
 	 * nested call row. A script-supplied baseUrl or headers must never receive the credentials.
 	 */
-	const runModelCall = async <TType extends "classifier" | "image", TContext, TResult extends ModelCallResult>(
+	const runModelCall = async <
+		TType extends "classifier" | "image",
+		TContext,
+		TResult extends ModelCallResult,
+		TOptions = unknown,
+	>(
 		name: string,
 		type: TType,
-		[model, context]: unknown[],
+		[model, context, options]: unknown[],
 		checkContext: (context: unknown) => TContext,
-		run: (resolved: ModelTypeMap[TType], context: TContext) => Promise<TResult>,
+		run: (resolved: ModelTypeMap[TType], context: TContext, options: TOptions) => Promise<TResult>,
+		checkOptions?: (options: unknown) => TOptions,
 	): Promise<TResult> => {
 		const listHint = `List the ${type} models you can use with models.getAvailableOfType("${type}").`;
 		if (!isRecord(model) || typeof model.provider !== "string" || typeof model.id !== "string") {
@@ -671,6 +688,7 @@ function createModelGlobals(
 			);
 		}
 		const checked = checkContext(context);
+		const checkedOptions = checkOptions ? checkOptions(options) : (options as TOptions);
 
 		const record: CodemodeNestedCall = {
 			id: `${toolCallId}/${name}/${++callCount}`,
@@ -681,7 +699,7 @@ function createModelGlobals(
 		calls.push(record);
 		publish();
 		const startedAt = performance.now();
-		const result = await limit(() => run(resolved, checked));
+		const result = await limit(() => run(resolved, checked, checkedOptions));
 		record.durationMs = performance.now() - startedAt;
 		record.status = result.stopReason === "stop" ? "ok" : result.stopReason === "aborted" ? "cancelled" : "error";
 		if (result.errorMessage) record.error = truncateText(result.errorMessage, ERROR_PREVIEW_CHARS);
@@ -722,11 +740,15 @@ function createModelGlobals(
 				"image",
 				args as unknown[],
 				checkImagesContext,
-				async (resolved, context) => {
-					const result = await models.generateImages(resolved, context, { signal });
+				async (resolved, context, options) => {
+					const result = await models.generateImages(resolved, context, {
+						signal,
+						metadata: options,
+					});
 					addGeneratedImages(result.output.filter((block) => block.type === "image").length);
 					return result;
 				},
+				checkImageMetadata,
 			),
 	};
 	return Object.entries(implementations).map(([name, execute]) => ({ name, spread: true, execute }));
