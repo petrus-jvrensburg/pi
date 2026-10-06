@@ -173,7 +173,7 @@ Image models generate images from a prompt and optional input images. Pi lists t
 - OpenRouter image models, such as `google/gemini-2.5-flash-image` and `black-forest-labs/flux.2-pro`, use `OPENROUTER_API_KEY` or the OpenRouter `/login` credential.
 - xAI's `grok-imagine-image-2.0` uses `XAI_API_KEY` or the xAI `/login` credential (SuperGrok or X Premium), not `OPENROUTER_API_KEY`. Edits accept up to 5 JPEG, PNG, or WebP images, in image-block order. To name one of several sources, write `<IMAGE_0>`, `<IMAGE_1>`, and so on yourself. Text blocks do not count. One source needs no token.
 
-Like classifier models, image models do not appear in `/model`; the model reaches them through the [`codemode`](cli.md#enable-codemode) tool. Scripts list them with `models.getAvailableOfType("image")` and call `models.generateImages(model, { input }, options)`. `options` is optional. xAI reads `aspect_ratio`, `resolution`, `quality`, and `n` from it; other providers ignore those fields. Omit a field to keep the service default. The result's `output` holds base64 image blocks, which `image()` attaches to the `codemode` result so the model sees them:
+Like classifier models, image models do not appear in `/model`; the model reaches them through the [`codemode`](cli.md#enable-codemode) tool. Scripts list them with `models.getAvailableOfType("image")` and call `models.generateImages(model, { input }, options)`. `options` is an optional plain object of provider metadata. xAI reads `aspect_ratio`, `resolution`, `quality`, and `n`; other providers ignore those fields. Omit a field to keep the service default. Allowed values are in the [xAI image metadata](../../ai/README.md#xai-image-metadata). The result's `output` holds base64 image blocks, which `image()` attaches to the `codemode` result so the model sees them:
 
 ```js
 const painter = await models.getModelOfType("image", "openrouter", "google/gemini-2.5-flash-image");
@@ -192,7 +192,7 @@ const wide = await models.generateImages(
 );
 ```
 
-`input` can also contain `{ type: "image", data, mimeType }` blocks to edit or use as references. Pi adds the usage of a script's image calls to the `codemode` tool result, like classifier calls. Generated images are not saved to disk. [Codemode](codemode.md#generate-images) describes the full API.
+`input` can also contain `{ type: "image", data, mimeType }` blocks to edit or use as references. Pi adds the usage of a script's image calls to the `codemode` tool result, like classifier calls. `generateImages()` does not write files. `image()` saves each shown image to a temp file and names the path in the result, so a later turn can copy or move it. [Codemode](codemode.md#generate-images) describes the full API.
 
 Extensions generate images through `ctx.modelRegistry.generateImages()`, without codemode.
 

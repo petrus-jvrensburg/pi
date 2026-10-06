@@ -85,8 +85,8 @@ declare const models: {
   getModelOfType(type: ModelType, provider: string, id: string): Promise<ModelInfo | undefined>;
   /** Answer `context.questions` about `context.state`; answers are in `result.answers` by question ID. */
   classify(model: ModelInfo, context: ClassifierContext): Promise<ClassifierResult>;
-  /** Generate images from `context.input`. Optional `options` are provider controls (`ImageGenerationOptions`). Can take minutes. */
-  generateImages(model: ModelInfo, context: ImagesContext, options?: ImageGenerationOptions): Promise<ImagesResult>;
+  /** Generate images from `context.input`. Optional `options` are provider metadata. Can take minutes. */
+  generateImages(model: ModelInfo, context: ImagesContext, options?: Record<string, unknown>): Promise<ImagesResult>;
 };
 ```
 
@@ -206,20 +206,9 @@ type TextBlock = { type: "text"; text: string };
 type ImageBlock = { type: "image"; data: string; mimeType: string };
 ```
 
-Show generated images with `image(block)`. Do not print `data` with `text()`, `console`, or `return`: it is large and the model cannot read it as text. `image()` also saves each image to a temp file and puts its path in the result, so a later turn can copy or move the file. Edit limits and `<IMAGE_0>` indexing are in [Use image models](models.md#use-image-models).
+Show generated images with `image(block)`. Do not print `data` with `text()`, `console`, or `return`: it is large and the model cannot read it as text. `image()` also saves each image to a temp file and puts its path in the result, so a later turn can copy or move the file.
 
-The third argument is optional. xAI reads the fields below; other providers ignore them. Omit a field to keep the service default.
-
-```ts
-interface ImageGenerationOptions {
-  aspect_ratio?: "1:1" | "3:4" | "4:3" | "9:16" | "16:9" | "2:3" | "3:2" | "9:19.5" | "19.5:9" | "9:20" | "20:9" | "1:2" | "2:1" | "21:9" | "5:2" | "auto";
-  resolution?: "1k" | "2k";
-  /** `auto`, `low`, or `medium`. Omitted keeps the service default (`auto`: low for generation, medium for editing). */
-  quality?: "auto" | "low" | "medium";
-  /** Integer >= 1. Generation allows at most 10. */
-  n?: number;
-}
-```
+The third argument is optional provider metadata, a plain object. It is not prompts or image bytes. xAI reads `aspect_ratio`, `resolution`, `quality`, and `n`; other providers ignore those fields. Omit a field to keep the service default. Allowed values are in the [xAI image metadata](../../ai/README.md#xai-image-metadata). Edit limits and `<IMAGE_0>` indexing are in [Use image models](models.md#use-image-models).
 
 ```js
 // @options: {"timeout_ms": 300000}
